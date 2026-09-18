@@ -1,0 +1,17 @@
+# FastAPI & Web Framework
+fastapi>=0.110.0
+uvicorn>=0.28.0
+pydantic>=2.6.0
+python-dotenv>=1.0.1
+
+# LLM & AI Frameworks
+openai>=1.14.0
+langchain>=0.1.12
+sentence-transformers>=2.5.1
+chromadb>=0.4.24
+
+# Utilities & Tools
+pyserial>=3.5
+numpy>=1.26.4
+httpx>=0.27.0
+pytest>=8.1.1
