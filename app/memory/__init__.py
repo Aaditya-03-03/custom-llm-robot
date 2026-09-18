@@ -1,3 +1,3 @@
 """
-Conversation memory package.
+Memory package for MongoDB-backed conversation persistence.
 """

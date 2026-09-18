@@ -1,3 +1,3 @@
 """
-Retrieval-Augmented Generation (RAG) package.
+RAG (Retrieval-Augmented Generation) package initialization.
 """
