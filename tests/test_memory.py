@@ -11,6 +11,7 @@ Requires a running MongoDB instance at MONGODB_URI.
 Tests are skipped automatically if MongoDB is unreachable.
 """
 
+import time
 import pytest
 from datetime import datetime, timezone, timedelta
 from unittest.mock import patch, MagicMock
@@ -224,6 +225,7 @@ def test_current_message_not_in_history(manager):
     session_id = manager.resolve_session("ordering-test")
 
     manager.save_user_message(session_id, "Old message")
+    time.sleep(0.02)
 
     # Capture cutoff BEFORE saving current message
     cutoff = datetime.now(timezone.utc)
