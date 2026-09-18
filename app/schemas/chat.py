@@ -30,9 +30,16 @@ class ChatRequest(BaseModel):
     )
 
 
+from app.intent.schemas import StructuredIntent
+
+
 class ChatResponse(BaseModel):
     session_id: str = Field(..., description="Session identifier (auto-generated or provided)")
     response: str = Field(..., description="Generated text response from local LLM")
+    intent: Optional[StructuredIntent] = Field(
+        default=None,
+        description="Optional lightweight structured intent annotation if detected deterministically",
+    )
 
 
 class MessageRecord(BaseModel):

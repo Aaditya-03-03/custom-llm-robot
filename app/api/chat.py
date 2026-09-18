@@ -43,6 +43,8 @@ from app.schemas.chat import (
     HistoryResponse,
     MessageRecord,
 )
+from app.intent.normalizer import normalize_deterministic_intent
+from app.intent.schemas import IntentCategory
 
 logger = logging.getLogger("custom_llm_robot.api.chat")
 router = APIRouter()
@@ -218,8 +220,16 @@ async def chat_endpoint(request: ChatRequest):
     manager.save_assistant_message(session_id=session_id, content=answer)
     logger.info(f"[{session_id}] Assistant response saved to MongoDB.")
 
-    # --- Step 8: Return response ---
-    return ChatResponse(session_id=session_id, response=answer)
+    # --- Step 8: Return response (with lightweight deterministic intent annotation if matched) ---
+    det_intent = normalize_deterministic_intent(request.message)
+    annotated_intent = det_intent if (det_intent and det_intent.category == IntentCategory.ROBOT_COMMAND) else None
+
+    return ChatResponse(
+        session_id=session_id,
+        response=answer,
+        intent=annotated_intent,
+    )
+
 
 
 # ---------------------------------------------------------------------------

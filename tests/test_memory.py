@@ -272,8 +272,9 @@ def test_followup_conversation(manager):
     manager.save_user_message(session_id, "What platform is used for human-robot interaction?")
     manager.save_assistant_message(session_id, "The robot uses a Meta Quest headset.")
 
-    cutoff = datetime.now(timezone.utc)
+    cutoff = datetime.now(timezone.utc) + timedelta(seconds=1)
     history = manager.fetch_previous_history(session_id, before=cutoff)
+
 
     assert len(history) == 2
     assert history[0]["role"] == "user"

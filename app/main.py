@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.core.config import settings
 from app.core.logging import RequestIDMiddleware, logger
-from app.api import health, chat, knowledge
+from app.api import health, chat, knowledge, intent
 from app.rag.config import rag_settings
 from app.memory.database import connect_mongodb, disconnect_mongodb
 
@@ -70,6 +70,8 @@ app.add_middleware(RequestIDMiddleware)
 app.include_router(health.router, prefix="/api/v1", tags=["Health"])
 app.include_router(chat.router, prefix="/api/v1", tags=["Chat"])
 app.include_router(knowledge.router, tags=["Knowledge"])
+app.include_router(intent.router, prefix="/api/v1", tags=["Intent"])
+
 
 
 @app.get("/", include_in_schema=False)
