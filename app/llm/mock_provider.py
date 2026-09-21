@@ -1,9 +1,11 @@
+import json
 import logging
 from typing import List, Any
 from app.llm.base import BaseLLMProvider
 from app.schemas.chat import ChatMessage
 
 logger = logging.getLogger("custom_llm_robot.mock")
+
 
 class MockLLMProvider(BaseLLMProvider):
     """
@@ -16,9 +18,151 @@ class MockLLMProvider(BaseLLMProvider):
         sys_msg = next((msg.content for msg in messages if msg.role == "system"), "")
         logger.info(f"MockLLMProvider processing message: '{last_user_msg}'")
 
-        # If invoked for intent extraction, return mock JSON matching intent schema
+        lower_user = last_user_msg.lower()
+
+        # 1. Stage 7 Action Planning / Tool Calling
+        if "robot action planning engine" in sys_msg.lower():
+            if "corrupt" in lower_user:
+                return "Not a valid JSON response from model {broken..."
+            elif "contradictory" in lower_user:
+                return json.dumps({
+                    "plan_explanation": "Contradictory speed",
+                    "actions": [{
+                        "action_id": "action_1",
+                        "tool": "forward",
+                        "parameters": {"speed": 30, "speed_profile": "slow", "steps": 1}
+                    }]
+                })
+            elif "invalid profile" in lower_user or "turbo" in lower_user:
+                return json.dumps({
+                    "plan_explanation": "Invalid speed profile",
+                    "actions": [{
+                        "action_id": "action_1",
+                        "tool": "forward",
+                        "parameters": {"speed_profile": "super_fast", "steps": 1}
+                    }]
+                })
+            elif "too many" in lower_user:
+                return json.dumps({
+                    "plan_explanation": "Exceeds max actions",
+                    "actions": [
+                        {"action_id": "action_1", "tool": "forward", "parameters": {"speed_profile": "slow", "steps": 1}},
+                        {"action_id": "action_2", "tool": "backward", "parameters": {"speed_profile": "slow", "steps": 1}},
+                        {"action_id": "action_3", "tool": "forward", "parameters": {"speed_profile": "slow", "steps": 1}},
+                        {"action_id": "action_4", "tool": "stop", "parameters": {}},
+                    ]
+                })
+            elif "move_joint" in lower_user or "bypass" in lower_user:
+                return json.dumps({
+                    "plan_explanation": "Direct joint bypass proposal",
+                    "actions": [{
+                        "action_id": "action_1",
+                        "tool": "move_joint",
+                        "parameters": {"joint_id": 1, "angle": 45}
+                    }]
+                })
+            elif "fly" in lower_user or "jump" in lower_user or "dance" in lower_user:
+                return json.dumps({
+                    "plan_explanation": "Unsupported request",
+                    "actions": [{
+                        "action_id": "action_1",
+                        "tool": None,
+                        "reason": f"Tool '{last_user_msg}' is not supported."
+                    }]
+                })
+            elif "999" in lower_user or "excessive" in lower_user:
+                return json.dumps({
+                    "plan_explanation": "Excessive speed request",
+                    "actions": [{
+                        "action_id": "action_1",
+                        "tool": "forward",
+                        "parameters": {"speed": 999, "steps": 1}
+                    }]
+                })
+            elif "stop" in lower_user:
+                return json.dumps({
+                    "plan_explanation": "Stop movement",
+                    "actions": [{
+                        "action_id": "action_1",
+                        "tool": "stop",
+                        "parameters": {}
+                    }]
+                })
+            elif "then" in lower_user or "multi" in lower_user or ("forward" in lower_user and "backward" in lower_user):
+                return json.dumps({
+                    "plan_explanation": "Multi-action sequence",
+                    "actions": [
+                        {
+                            "action_id": "action_1",
+                            "tool": "forward",
+                            "parameters": {"speed_profile": "slow", "steps": 1}
+                        },
+                        {
+                            "action_id": "action_2",
+                            "tool": "backward",
+                            "parameters": {"speed_profile": "slow", "steps": 1}
+                        }
+                    ]
+                })
+            elif "do that again" in lower_user or "repeat" in lower_user:
+                return json.dumps({
+                    "plan_explanation": "Repeat action from context",
+                    "actions": [{
+                        "action_id": "action_1",
+                        "tool": "repeat",
+                        "parameters": {}
+                    }]
+                })
+            elif "slow" in lower_user:
+                steps = 2 if "2" in lower_user else 1
+                tool = "backward" if "backward" in lower_user else "forward"
+                return json.dumps({
+                    "plan_explanation": f"Move {tool} slowly",
+                    "actions": [{
+                        "action_id": "action_1",
+                        "tool": tool,
+                        "parameters": {"speed_profile": "slow", "steps": steps}
+                    }]
+                })
+            elif "fast" in lower_user:
+                tool = "backward" if "backward" in lower_user else "forward"
+                return json.dumps({
+                    "plan_explanation": f"Move {tool} fast",
+                    "actions": [{
+                        "action_id": "action_1",
+                        "tool": tool,
+                        "parameters": {"speed_profile": "fast", "steps": 1}
+                    }]
+                })
+            elif "medium" in lower_user:
+                tool = "backward" if "backward" in lower_user else "forward"
+                return json.dumps({
+                    "plan_explanation": f"Move {tool} at medium speed",
+                    "actions": [{
+                        "action_id": "action_1",
+                        "tool": tool,
+                        "parameters": {"speed_profile": "medium", "steps": 1}
+                    }]
+                })
+            elif "forward" in lower_user or "backward" in lower_user:
+                # Speed missing!
+                tool = "backward" if "backward" in lower_user else "forward"
+                return json.dumps({
+                    "plan_explanation": f"Move {tool} requested without speed",
+                    "actions": [{
+                        "action_id": "action_1",
+                        "tool": tool,
+                        "parameters": {}
+                    }]
+                })
+            else:
+                return json.dumps({
+                    "plan_explanation": "General conversational response",
+                    "actions": []
+                })
+
+        # 2. Stage 4 Intent Extraction Mock
         if "intent detection engine" in sys_msg.lower():
-            lower_user = last_user_msg.lower()
             if "corrupt" in lower_user:
                 return "Not a valid JSON response from model"
             elif "fly" in lower_user or "jump" in lower_user:
@@ -47,7 +191,6 @@ class MockLLMProvider(BaseLLMProvider):
                 return '{"category": "conversation", "action": null, "parameters": null, "error_message": null}'
 
         return f"I am the IOFT Humanoid Robot AI (Mock Mode). Received: '{last_user_msg}'"
-
 
     async def check_health(self) -> bool:
         return True

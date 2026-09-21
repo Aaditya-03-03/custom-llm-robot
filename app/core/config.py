@@ -40,6 +40,12 @@ class Settings(BaseSettings):
     ROBOT_DEFAULT_AUTHORITY: ControlAuthority = ControlAuthority.MANUAL
     ROBOT_PIVOT_TURNS_VERIFIED: bool = False
 
+    # Stage 7 LLM Tool Calling & Action Planning settings
+    ROBOT_SPEED_SLOW: int = 20
+    ROBOT_SPEED_MEDIUM: int = 40
+    ROBOT_SPEED_FAST: int = 70
+    MAX_ACTIONS_PER_PLAN: int = 3
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
