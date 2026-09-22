@@ -29,6 +29,7 @@ from app.planning.validator import pre_validate_execution_plan
 from app.execution.adapter import default_execution_adapter
 from app.execution.authority import default_authority_manager
 from app.schemas.commands import PhysicalExecutionRequest, PhysicalExecutionResponse
+from app.state import default_state_manager, ConnectionStatus
 
 logger = logging.getLogger("custom_llm_robot.api.assistant")
 router = APIRouter()
@@ -53,6 +54,8 @@ def _log_assistant_audit(
     failed: Optional[str],
     aborted: List[str],
     errors: List[str],
+    state_before: Optional[Dict[str, Any]] = None,
+    state_after: Optional[Dict[str, Any]] = None,
 ) -> None:
     """Audit logging to MongoDB assistant_audits collection."""
     client = get_mongo_client()
@@ -69,6 +72,8 @@ def _log_assistant_audit(
                 "failed_action": failed,
                 "remaining_actions_aborted": aborted,
                 "errors": errors,
+                "state_before": state_before,
+                "state_after": state_after,
                 "timestamp": datetime.now(timezone.utc),
             }
             db["assistant_audits"].insert_one(record)
@@ -242,7 +247,39 @@ async def assistant_endpoint(request: AssistantRequest):
             errors=val_result.errors,
         )
 
-    # 5. Execution Authority Gate
+    # 5. Robot State Freshness & Availability Gate
+    state_before = default_state_manager.get_state()
+    has_movement = any(action.tool in ("forward", "backward", "left", "right") for action in plan.actions)
+    if has_movement and (state_before.connection_status == ConnectionStatus.DISCONNECTED or state_before.is_stale):
+        unavail_msg = "The robot connection is unavailable or stale."
+        logger.warning(f"Plan rejected due to stale robot state [{request_id}]: {unavail_msg}")
+        if manager:
+            manager.save_assistant_message(session_id, unavail_msg)
+        _log_assistant_audit(
+            request_id=request_id,
+            session_id=session_id,
+            user_message=user_msg,
+            plan=plan,
+            status_val=AssistantStatus.ASSISTANT_ROBOT_UNAVAILABLE,
+            completed=[],
+            failed=None,
+            aborted=[act.action_id for act in plan.actions],
+            errors=[unavail_msg],
+            state_before=state_before.model_dump(),
+            state_after=state_before.model_dump(),
+        )
+        return AssistantResponse(
+            request_id=request_id,
+            session_id=session_id,
+            plan_id=plan.plan_id,
+            status=AssistantStatus.ASSISTANT_ROBOT_UNAVAILABLE,
+            response_text=unavail_msg,
+            executed=False,
+            plan=plan,
+            errors=[unavail_msg],
+        )
+
+    # 6. Execution Authority Gate
     current_auth = default_authority_manager.current_authority
     if current_auth == ControlAuthority.MANUAL:
         auth_err = "AI server currently in MANUAL authority mode. Physical execution rejected."
@@ -326,6 +363,7 @@ async def assistant_endpoint(request: AssistantRequest):
         response_text = f"Action '{failed_action}' failed to execute: {'; '.join(execution_errors)}"
 
     # 7. Audit & Memory Persistence
+    state_after = default_state_manager.get_state()
     _log_assistant_audit(
         request_id=request_id,
         session_id=session_id,
@@ -336,6 +374,8 @@ async def assistant_endpoint(request: AssistantRequest):
         failed=failed_action,
         aborted=remaining_actions_aborted,
         errors=execution_errors,
+        state_before=state_before.model_dump() if state_before else None,
+        state_after=state_after.model_dump(),
     )
 
     if manager:

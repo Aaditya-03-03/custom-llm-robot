@@ -14,3 +14,9 @@ class HealthResponse(BaseModel):
     mongodb_available: bool = Field(
         ..., description="Whether the MongoDB conversation memory store is reachable"
     )
+    robot_connected: bool = Field(
+        default=False, description="Whether a fresh successful heartbeat confirms active robot connectivity"
+    )
+    robot_state_available: bool = Field(
+        default=True, description="Whether the canonical RobotState subsystem is initialized and usable"
+    )

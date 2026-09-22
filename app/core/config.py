@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     ROBOT_SPEED_FAST: int = 70
     MAX_ACTIONS_PER_PLAN: int = 3
 
+    # Stage 8 Robot State Awareness & Telemetry settings
+    ROBOT_STATE_STALE_AFTER_SECONDS: float = 5.0
+    ROBOT_HEARTBEAT_INTERVAL_SECONDS: float = 2.0
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

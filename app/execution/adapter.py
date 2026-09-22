@@ -25,6 +25,7 @@ from app.execution.errors import (
     CapabilityDisabledError,
     InvalidPacketError,
 )
+from app.state.manager import default_state_manager
 
 logger = logging.getLogger("custom_llm_robot.execution.adapter")
 
@@ -142,11 +143,18 @@ class ExecutionAdapter:
             )
 
         # 4. Dispatch Execution
+        default_state_manager.record_command_start(
+            tool_name=val_result.tool,
+            speed=val_result.parameters.get("speed"),
+        )
         try:
             if val_result.tool == "stop":
                 # Emergency STOP path (cancels any running locomotion and dispatches STOP|0|0.00)
                 hw_affected, ack_recv, msg = await self.controller.execute_stop()
                 status = ExecutionStatus.EXECUTION_SUCCESS if ack_recv else ExecutionStatus.ACK_TIMEOUT
+                if ack_recv:
+                    default_state_manager.record_ack("MOTOR_ACK")
+                default_state_manager.record_command_complete(success=ack_recv)
                 ExecutionLogger.log_execution(
                     execution_id=execution_id,
                     tool=val_result.tool,
@@ -179,6 +187,8 @@ class ExecutionAdapter:
                     packet=packet,
                     steps=steps,
                 )
+                default_state_manager.record_ack("MOTOR_ACK")
+                default_state_manager.record_command_complete(success=True)
                 ExecutionLogger.log_execution(
                     execution_id=execution_id,
                     tool=val_result.tool,
@@ -206,6 +216,7 @@ class ExecutionAdapter:
 
         except ExecutionBusyError as e:
             logger.warning(f"Locomotion execution rejected (BUSY): {e}")
+            default_state_manager.record_command_complete(success=False)
             ExecutionLogger.log_execution(
                 execution_id=execution_id,
                 tool=val_result.tool,
@@ -233,6 +244,7 @@ class ExecutionAdapter:
 
         except AckTimeoutError as e:
             logger.error(f"ACK Timeout during execution: {e}")
+            default_state_manager.record_command_complete(success=False)
             ExecutionLogger.log_execution(
                 execution_id=execution_id,
                 tool=val_result.tool,
@@ -260,6 +272,8 @@ class ExecutionAdapter:
 
         except RobotUnreachableError as e:
             logger.error(f"Robot unreachable: {e}")
+            default_state_manager.mark_disconnected()
+            default_state_manager.record_command_complete(success=False)
             ExecutionLogger.log_execution(
                 execution_id=execution_id,
                 tool=val_result.tool,
@@ -287,6 +301,7 @@ class ExecutionAdapter:
 
         except NetworkError as e:
             logger.error(f"Network error during execution: {e}")
+            default_state_manager.record_command_complete(success=False)
             ExecutionLogger.log_execution(
                 execution_id=execution_id,
                 tool=val_result.tool,

@@ -121,12 +121,12 @@ def parse_action(
             reason="Action parameters must be a dictionary",
         )
 
-    # 1. Stop tool requires no speed
+    # 1. Stop tool requires no parameters
     if canonical_tool == "stop":
         return ToolCall(
             action_id=action_id,
             tool="stop",
-            parameters={"speed": 0, "steps": 0},
+            parameters={},
             steps=0,
             requested_speed=0,
         )

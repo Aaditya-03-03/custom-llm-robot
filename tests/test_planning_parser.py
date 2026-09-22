@@ -134,8 +134,9 @@ def test_stop_tool_requires_no_speed():
     }
     call = parse_action(raw_action)
     assert call.needs_clarification is False
-    assert call.parameters["speed"] == 0
-    assert call.parameters["steps"] == 0
+    assert call.parameters == {}
+    assert call.requested_speed == 0
+    assert call.steps == 0
 
 
 def test_max_actions_per_plan_enforcement():
