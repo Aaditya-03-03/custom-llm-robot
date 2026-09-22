@@ -50,6 +50,11 @@ class Settings(BaseSettings):
     ROBOT_STATE_STALE_AFTER_SECONDS: float = 5.0
     ROBOT_HEARTBEAT_INTERVAL_SECONDS: float = 2.0
 
+    # Stage 9 Closed-Loop Execution, Verification & Recovery settings
+    ROBOT_VERIFICATION_ENABLED: bool = True
+    ROBOT_VERIFICATION_TIMEOUT_SECONDS: float = 2.0
+    ROBOT_RECOVERY_ENABLED: bool = True
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

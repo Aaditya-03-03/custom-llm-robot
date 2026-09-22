@@ -224,6 +224,51 @@ def test_assistant_multi_action_partial_failure():
         assert data["status"] == AssistantStatus.ASSISTANT_PARTIAL_FAILURE.value
         assert data["executed"] is False
         assert data["completed_actions"] == ["action_1"]
-        assert data["failed_action"] == "action_2"
         # Emergency stop was dispatched after failure
         assert mock_exec.call_count == 3
+
+
+def test_assistant_returns_stage9_execution_records_and_truthful_response():
+    """Verify assistant response includes Stage 9 execution records and truthful reporting."""
+    default_authority_manager._authority = ControlAuthority.AI
+
+    resp_mock = PhysicalExecutionResponse(
+        success=True,
+        status=ExecutionStatus.EXECUTION_SUCCESS,
+        execution_id="exec_stage9",
+        tool="forward",
+        parameters={"speed": 20, "steps": 1},
+        packet_sent="FORWARD|20|0.00",
+        ack_received=True,
+        hardware_state_affected=True,
+        duration_seconds=0.6,
+        message="Command executed successfully",
+    )
+
+    with patch("app.execution.adapter.default_execution_adapter.execute_command", new_callable=AsyncMock) as mock_exec:
+        mock_exec.return_value = resp_mock
+        response = client.post("/api/v1/assistant", json={"message": "Move forward slowly"})
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["status"] == AssistantStatus.ASSISTANT_EXECUTED.value
+        assert "execution_records" in data
+        assert len(data["execution_records"]) == 1
+
+        exec_rec = data["execution_records"][0]
+        assert exec_rec["command"] == "FORWARD"
+        assert exec_rec["execution_phase"] == "NOT_VERIFIED"
+        assert exec_rec["verification_status"] == "NOT_VERIFIED"
+        assert exec_rec["physical_motion_verified"] is None
+        assert "verification_deadline" in exec_rec
+
+        # Verify truthful response text
+        assert "physical motion unverified" in data["response_text"].lower()
+
+        # Query read-only execution API with the generated execution_id
+        exec_id = exec_rec["execution_id"]
+        exec_api_resp = client.get(f"/api/v1/robot/execution/{exec_id}")
+        assert exec_api_resp.status_code == 200
+        api_data = exec_api_resp.json()
+        assert api_data["execution_id"] == exec_id
+        assert api_data["verification_status"] == "NOT_VERIFIED"

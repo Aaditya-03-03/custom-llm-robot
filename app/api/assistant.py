@@ -30,6 +30,15 @@ from app.execution.adapter import default_execution_adapter
 from app.execution.authority import default_authority_manager
 from app.schemas.commands import PhysicalExecutionRequest, PhysicalExecutionResponse
 from app.state import default_state_manager, ConnectionStatus
+from app.verification.models import (
+    ExecutionPhase,
+    VerificationStatus,
+    RecoveryAction,
+    ExecutionRecord,
+)
+from app.verification.verifier import verify_execution
+from app.verification.recovery import determine_recovery_policy, execute_controlled_recovery
+from app.verification.manager import default_execution_manager
 
 logger = logging.getLogger("custom_llm_robot.api.assistant")
 router = APIRouter()
@@ -56,12 +65,14 @@ def _log_assistant_audit(
     errors: List[str],
     state_before: Optional[Dict[str, Any]] = None,
     state_after: Optional[Dict[str, Any]] = None,
+    execution_records: Optional[List[Dict[str, Any]]] = None,
 ) -> None:
     """Audit logging to MongoDB assistant_audits collection."""
     client = get_mongo_client()
     if client and is_mongodb_available():
         try:
-            db = client[settings.MONGODB_DB_NAME]
+            db_name = getattr(settings, "MONGODB_DATABASE", getattr(settings, "MONGODB_DB_NAME", "custom_llm_robot"))
+            db = client[db_name]
             record = {
                 "request_id": request_id,
                 "session_id": session_id,
@@ -74,6 +85,7 @@ def _log_assistant_audit(
                 "errors": errors,
                 "state_before": state_before,
                 "state_after": state_after,
+                "execution_records": execution_records or [],
                 "timestamp": datetime.now(timezone.utc),
             }
             db["assistant_audits"].insert_one(record)
@@ -301,57 +313,128 @@ async def assistant_endpoint(request: AssistantRequest):
             errors=[auth_err],
         )
 
-    # 6. Strictly Sequential Physical Execution
-    # Each action must completely return its Stage 6 execution result before the next action begins
+    # 6. Strictly Sequential Closed-Loop Physical Execution & Verification
+    # Each action progresses through CREATED -> VALIDATED -> AUTHORIZED -> DISPATCHED -> EXECUTING
+    # -> COMPLETED -> VERIFYING -> (VERIFIED | NOT_VERIFIED | FAILED), with controlled recovery on failure.
     execution_results: List[PhysicalExecutionResponse] = []
     completed_actions: List[str] = []
     failed_action: Optional[str] = None
     remaining_actions_aborted: List[str] = []
     execution_errors: List[str] = []
+    action_records: List[Dict[str, Any]] = []
     all_successful = True
 
     for idx, action in enumerate(plan.actions):
+        execution_id = f"exec-{uuid.uuid4().hex[:12]}"
         logger.info(
             f"Executing plan action {idx+1}/{len(plan.actions)}: "
-            f"action_id='{action.action_id}', tool='{action.tool}', params={action.parameters}"
+            f"action_id='{action.action_id}', execution_id='{execution_id}', tool='{action.tool}', params={action.parameters}"
         )
+
+        # 6a. Register ExecutionRecord & Advance Phases
+        await default_execution_manager.create_record(
+            execution_id=execution_id,
+            request_id=request_id,
+            session_id=session_id,
+            plan_id=plan.plan_id,
+            action_id=action.action_id,
+            command=action.tool.upper() if action.tool else "UNKNOWN",
+            speed=action.parameters.get("speed"),
+            steps=action.parameters.get("steps"),
+        )
+        await default_execution_manager.advance_phase(execution_id, ExecutionPhase.VALIDATED)
+        await default_execution_manager.advance_phase(execution_id, ExecutionPhase.AUTHORIZED)
+        await default_execution_manager.advance_phase(execution_id, ExecutionPhase.DISPATCHED)
+
+        state_before_act = default_state_manager.get_state()
         exec_req = PhysicalExecutionRequest(
             tool_name=action.tool,
             parameters=action.parameters,
         )
-        
-        # Strictly sequential execution: awaits ACK/result completely
+
+        # Invariant 3: EXECUTING phase denotes active Stage 6 execution transaction
+        await default_execution_manager.advance_phase(execution_id, ExecutionPhase.EXECUTING)
+
+        # 6b. Strictly sequential execution: awaits ACK/result completely
         exec_resp = await default_execution_adapter.execute_command(exec_req)
         execution_results.append(exec_resp)
+        await default_execution_manager.record_stage6_result(execution_id, exec_resp)
 
+        if exec_resp.ack_received:
+            await default_execution_manager.advance_phase(execution_id, ExecutionPhase.ACKNOWLEDGED)
         if exec_resp.success:
-            completed_actions.append(action.action_id)
-        else:
+            await default_execution_manager.advance_phase(execution_id, ExecutionPhase.COMPLETED)
+
+        # 6c. Stage 9 Closed-Loop Verification
+        await default_execution_manager.advance_phase(execution_id, ExecutionPhase.VERIFYING)
+        state_after_act = default_state_manager.get_state()
+
+        rec = default_execution_manager.get_record(execution_id)
+        verif_result = verify_execution(
+            execution_record=rec,
+            stage6_resp=exec_resp,
+            state_before=state_before_act,
+            state_after=state_after_act,
+        )
+
+        # 6d. Check Verification & Execution Outcome
+        if verif_result.verification_status == VerificationStatus.FAILED:
             failed_action = action.action_id
             all_successful = False
-            execution_errors.extend(exec_resp.errors or [exec_resp.message])
+            execution_errors.extend(exec_resp.errors or [verif_result.reason])
             remaining_actions_aborted = [act.action_id for act in plan.actions[idx + 1:]]
 
-            # If Action N fails after Action 1..N-1 succeeded, dispatch emergency STOP
-            if len(completed_actions) > 0:
-                logger.warning(
-                    f"Action '{failed_action}' failed after actions {completed_actions} succeeded. "
-                    "Dispatching emergency STOP to ensure robot safety."
-                )
-                try:
-                    await default_execution_adapter.execute_command(
-                        PhysicalExecutionRequest(tool_name="stop", parameters={})
-                    )
-                except Exception as stop_err:
-                    logger.error(f"Emergency stop dispatch error: {stop_err}")
+            # Invariant 6 & 7 & 8: Trigger controlled recovery policy (no automatic movement retries)
+            rec_action, already_performed = determine_recovery_policy(
+                stage6_resp=exec_resp,
+                verification_result=verif_result,
+                is_stale=state_after_act.is_stale,
+            )
+            if rec_action == RecoveryAction.STOP:
+                if already_performed:
+                    rec_msg = "STOP already dispatched by Stage 6 failsafe."
+                else:
+                    await default_execution_manager.advance_phase(execution_id, ExecutionPhase.RECOVERY)
+                    rec_msg = await execute_controlled_recovery(RecoveryAction.STOP)
+                await default_execution_manager.record_recovery(execution_id, rec_action, rec_msg)
 
-            # Abort execution loop immediately
+            await default_execution_manager.complete_verification(
+                execution_id=execution_id,
+                result=verif_result,
+                observed_state=state_after_act.model_dump(),
+                final_phase=ExecutionPhase.FAILED,
+            )
+            action_records.append(default_execution_manager.get_record(execution_id).model_dump())
             break
+        else:
+            completed_actions.append(action.action_id)
+            final_phase = (
+                ExecutionPhase.VERIFIED
+                if verif_result.verification_status == VerificationStatus.VERIFIED
+                else ExecutionPhase.NOT_VERIFIED
+            )
+            await default_execution_manager.complete_verification(
+                execution_id=execution_id,
+                result=verif_result,
+                observed_state=state_after_act.model_dump(),
+                final_phase=final_phase,
+            )
+            action_records.append(default_execution_manager.get_record(execution_id).model_dump())
 
-    # Determine final AssistantStatus
+    # Determine final AssistantStatus & truthful response text
     if all_successful:
         final_status = AssistantStatus.ASSISTANT_EXECUTED
-        response_text = plan.plan_explanation or f"Successfully executed {len(completed_actions)} action(s)."
+        # Truthful response: distinguish if physical motion was unverified
+        unverified_actions = [
+            r for r in action_records
+            if r.get("command") in ("FORWARD", "BACKWARD", "LEFT", "RIGHT")
+            and r.get("physical_motion_verified") is None
+        ]
+        if unverified_actions:
+            base_msg = plan.plan_explanation or f"Successfully executed {len(completed_actions)} action(s)."
+            response_text = f"{base_msg} (Controller acknowledged command(s); physical motion unverified - no sensors)."
+        else:
+            response_text = plan.plan_explanation or f"Successfully executed {len(completed_actions)} action(s)."
     elif len(completed_actions) > 0:
         final_status = AssistantStatus.ASSISTANT_PARTIAL_FAILURE
         response_text = (
@@ -376,6 +459,7 @@ async def assistant_endpoint(request: AssistantRequest):
         errors=execution_errors,
         state_before=state_before.model_dump() if state_before else None,
         state_after=state_after.model_dump(),
+        execution_records=action_records,
     )
 
     if manager:
@@ -394,4 +478,5 @@ async def assistant_endpoint(request: AssistantRequest):
         failed_action=failed_action,
         remaining_actions_aborted=remaining_actions_aborted,
         errors=execution_errors,
+        execution_records=action_records,
     )
