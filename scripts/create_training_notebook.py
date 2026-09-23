@@ -314,7 +314,6 @@ for batch_size, accum_steps in ladder_to_try:
         save_steps=100,
         save_total_limit=3,
         max_seq_length=512,
-        dataset_text_field="messages",
     )
     
     try:
@@ -323,7 +322,7 @@ for batch_size, accum_steps in ladder_to_try:
             train_dataset=train_dataset,
             eval_dataset=val_dataset,
             peft_config=lora_config,
-            tokenizer=tokenizer,
+            processing_class=tokenizer,
             args=training_args,
         )
         
