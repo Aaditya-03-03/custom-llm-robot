@@ -66,7 +66,7 @@ This notebook fine-tunes `Qwen/Qwen2.5-3B-Instruct` for the IOFT humanoid robot 
 !pip install -q \\
     transformers==4.49.0 \\
     peft==0.14.0 \\
-    bitsandbytes==0.45.2 \\
+    "bitsandbytes>=0.50.0" \\
     accelerate==1.4.0 \\
     trl==0.15.1 \\
     datasets==3.3.2 \\
