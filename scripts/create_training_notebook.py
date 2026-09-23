@@ -314,6 +314,7 @@ for batch_size, accum_steps in ladder_to_try:
         save_steps=100,
         save_total_limit=3,
         max_seq_length=512,
+        report_to="none",
     )
     
     try:
