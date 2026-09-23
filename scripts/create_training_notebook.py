@@ -166,7 +166,7 @@ from transformers import AutoTokenizer, AutoConfig
 
 BASE_MODEL_ID = "Qwen/Qwen2.5-3B-Instruct"
 # Pin exact Hugging Face revision/commit hash
-MODEL_REVISION = "d22da630c7270e5b4b20de29c0f991f868aa4925"
+MODEL_REVISION = "aa8e72537993ba99e69dfaafa59ed015b17504d1"
 
 tokenizer = AutoTokenizer.from_pretrained(
     BASE_MODEL_ID,
