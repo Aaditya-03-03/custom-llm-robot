@@ -113,35 +113,29 @@ class MockLLMProvider(BaseLLMProvider):
                         "parameters": {}
                     }]
                 })
-            elif "slow" in lower_user:
-                steps = 2 if "2" in lower_user else 1
+            elif any(k in lower_user for k in ("speed", "slow", "fast", "medium")):
+                import re
                 tool = "backward" if "backward" in lower_user else "forward"
+                speed_match = re.search(r"speed\s+(\d+)", lower_user)
+                steps_match = re.search(r"(\d+)\s+step", lower_user)
+                steps = int(steps_match.group(1)) if steps_match else (2 if "2" in lower_user else 1)
+                
+                if speed_match:
+                    speed = int(speed_match.group(1))
+                    params = {"speed": speed, "steps": steps}
+                elif "slow" in lower_user:
+                    params = {"speed_profile": "slow", "steps": steps}
+                elif "fast" in lower_user:
+                    params = {"speed_profile": "fast", "steps": steps}
+                else:
+                    params = {"speed_profile": "medium", "steps": steps}
+                
                 return json.dumps({
-                    "plan_explanation": f"Move {tool} slowly",
+                    "plan_explanation": f"Move {tool}",
                     "actions": [{
                         "action_id": "action_1",
                         "tool": tool,
-                        "parameters": {"speed_profile": "slow", "steps": steps}
-                    }]
-                })
-            elif "fast" in lower_user:
-                tool = "backward" if "backward" in lower_user else "forward"
-                return json.dumps({
-                    "plan_explanation": f"Move {tool} fast",
-                    "actions": [{
-                        "action_id": "action_1",
-                        "tool": tool,
-                        "parameters": {"speed_profile": "fast", "steps": 1}
-                    }]
-                })
-            elif "medium" in lower_user:
-                tool = "backward" if "backward" in lower_user else "forward"
-                return json.dumps({
-                    "plan_explanation": f"Move {tool} at medium speed",
-                    "actions": [{
-                        "action_id": "action_1",
-                        "tool": tool,
-                        "parameters": {"speed_profile": "medium", "steps": 1}
+                        "parameters": params
                     }]
                 })
             elif "forward" in lower_user or "backward" in lower_user:

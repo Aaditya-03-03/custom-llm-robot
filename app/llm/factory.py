@@ -14,8 +14,9 @@ def get_llm_provider() -> BaseLLMProvider:
     provider_name = settings.LLM_PROVIDER.lower().strip()
     
     if provider_name == "ollama":
-        logger.info(f"Initializing OllamaProvider (Model: {settings.OLLAMA_MODEL}, URL: {settings.OLLAMA_BASE_URL})")
-        return OllamaProvider()
+        model_name = settings.LLM_FINE_TUNED_MODEL_NAME if settings.USE_FINE_TUNED_MODEL else settings.OLLAMA_MODEL
+        logger.info(f"Initializing OllamaProvider (Model: {model_name}, URL: {settings.OLLAMA_BASE_URL}, FineTuned: {settings.USE_FINE_TUNED_MODEL})")
+        return OllamaProvider(model=model_name)
     elif provider_name == "mock":
         logger.info("Initializing MockLLMProvider")
         return MockLLMProvider()

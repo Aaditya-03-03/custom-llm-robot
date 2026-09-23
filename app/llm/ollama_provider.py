@@ -31,6 +31,8 @@ class OllamaProvider(BaseLLMProvider):
             "messages": formatted_messages,
             "stream": False
         }
+        if "options" in kwargs and kwargs["options"]:
+            payload["options"] = kwargs["options"]
 
         logger.info(f"Dispatching prompt to Ollama model '{self.model}' at {url}")
         

@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,6 +20,11 @@ class Settings(BaseSettings):
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "qwen2.5:3b"
     OLLAMA_TIMEOUT_SECONDS: float = 60.0
+
+    # Stage 10 Fine-Tuning & Local Model Deployment settings
+    LLM_FINE_TUNED_MODEL_NAME: str = "ioft-qwen25-3b-v1"
+    LLM_ADAPTER_PATH: Optional[str] = None
+    USE_FINE_TUNED_MODEL: bool = False
 
     # MongoDB Conversation Memory settings
     MONGODB_URI: str = "mongodb://localhost:27017"
