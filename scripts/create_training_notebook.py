@@ -219,13 +219,12 @@ if existing_checkpoints:
             raise ValueError("Incompatible checkpoint: base_model mismatch!")
         if prev_cfg.get("base_model_revision") != MODEL_REVISION:
             raise ValueError("Incompatible checkpoint: base_model_revision mismatch!")
-        print(f"Valid checkpoint found: {latest_ckpt}. Resuming supported.")
-        checkpoint_state["resumed"] = True
-        checkpoint_state["resume_from"] = str(latest_ckpt)
-        step_num = int(latest_ckpt.name.split("-")[-1])
-        checkpoint_state["global_step"] = step_num
-    else:
-        print(f"Found {latest_ckpt} but no prior training_config.json; starting fresh.")
+    
+    print(f"Valid checkpoint found: {latest_ckpt}. Auto-resuming from {latest_ckpt.name}!")
+    checkpoint_state["resumed"] = True
+    checkpoint_state["resume_from"] = str(latest_ckpt)
+    step_num = int(latest_ckpt.name.split("-")[-1]) if latest_ckpt.name.split("-")[-1].isdigit() else 0
+    checkpoint_state["global_step"] = step_num
 else:
     print("No prior checkpoint found; starting fresh training run.")
 """)
