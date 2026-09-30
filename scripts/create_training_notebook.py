@@ -434,6 +434,9 @@ print(f"Ollama Modelfile created: {modelfile_path}")
     # Cell 13: Artifact Hashes & training_config.json
     add_md("## 12. Artifact Hashes & Final training_config.json Manifest")
     add_code("""
+import hashlib, json
+import transformers, peft, trl, torch
+
 def file_sha256(filepath: Path) -> str:
     h = hashlib.sha256()
     with open(filepath, "rb") as f:
