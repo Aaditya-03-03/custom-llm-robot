@@ -393,10 +393,13 @@ print("Merged 16-bit model successfully exported.")
 Pins `llama.cpp` repository at commit `2018898b95fecfaeebebebbdfc5d2fa3c3a9cf33` for deterministic bit-level GGUF conversion.
 """)
     add_code("""
-import subprocess
+import subprocess, shutil
 
 LLAMA_CPP_DIR = Path("/content/llama.cpp")
-LLAMA_CPP_COMMIT = "2018898b95fecfaeebebebbdfc5d2fa3c3a9cf33"
+LLAMA_CPP_COMMIT = "a800ae46da2ed7dac236aa6bf2b595da6b6294b5"
+
+if LLAMA_CPP_DIR.exists() and not (LLAMA_CPP_DIR / "convert_hf_to_gguf.py").exists():
+    shutil.rmtree(LLAMA_CPP_DIR)
 
 if not LLAMA_CPP_DIR.exists():
     print("Cloning llama.cpp and checking out pinned commit...")

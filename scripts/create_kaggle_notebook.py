@@ -387,7 +387,7 @@ Converts the merged 16-bit model to GGUF using a pinned commit of `llama.cpp` (`
 """)
     add_code("""
 LLAMA_CPP_DIR = Path("/kaggle/working/llama.cpp")
-LLAMA_CPP_COMMIT = "2018898b95fecfaeebebebbdfc5d2fa3c3a9cf33"
+LLAMA_CPP_COMMIT = "a800ae46da2ed7dac236aa6bf2b595da6b6294b5"
 
 if not LLAMA_CPP_DIR.exists():
     print("Cloning llama.cpp...")
