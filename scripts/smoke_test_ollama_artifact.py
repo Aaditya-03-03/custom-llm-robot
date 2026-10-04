@@ -28,7 +28,7 @@ from app.core.config import settings
 def compute_sha256(filepath: Path) -> str:
     h = hashlib.sha256()
     with open(filepath, "rb") as f:
-        while chunk := f.read(65536):
+        while chunk := f.read(1024 * 1024):
             h.update(chunk)
     return h.hexdigest()
 
@@ -101,7 +101,7 @@ def run_deterministic_smoke_probe(base_url: str, model_name: str) -> bool:
 
     print(f"Dispatching deterministic smoke probe to {url} with options: {payload['options']}...")
     try:
-        resp = httpx.post(url, json=payload, timeout=30.0)
+        resp = httpx.post(url, json=payload, timeout=120.0)
         resp.raise_for_status()
         resp_data = resp.json()
         raw_content = resp_data.get("message", {}).get("content", "")

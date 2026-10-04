@@ -36,3 +36,7 @@ htmlcov/
 # Logs
 *.log
 logs/
+
+# Model Binaries
+*.gguf
+models/*/*.gguf

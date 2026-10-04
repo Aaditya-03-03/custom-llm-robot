@@ -1,0 +1,13 @@
+FROM ioft-qwen25-3b-v1.gguf
+
+PARAMETER temperature 0
+PARAMETER seed 42
+PARAMETER num_predict 256
+PARAMETER stop "<|im_end|>"
+PARAMETER stop "<|endoftext|>"
+
+SYSTEM """You are the Robot Action Planning Engine for the IOFT Robot.
+Your task is to translate user natural language requests into structured tool calls.
+Available Tools: forward, backward, stop.
+Rules: Always respond in valid JSON matching the Stage 7 execution plan schema.
+"""

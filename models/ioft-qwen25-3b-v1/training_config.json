@@ -1,0 +1,37 @@
+{
+  "base_model": "Qwen/Qwen2.5-3B-Instruct",
+  "base_model_revision": "aa8e72537993ba99e69dfaafa59ed015b17504d1",
+  "tokenizer_revision": "c6b3aa5d195c64d3e931dbc8ce5a75af1bffa7cb32131520b924f3d0474ff199",
+  "transformers_version": "4.49.0",
+  "peft_version": "0.14.0",
+  "trl_version": "0.15.1",
+  "bitsandbytes_version": "0.50.2",
+  "torch_version": "2.11.0+cu128",
+  "gguf_converter": "llama.cpp",
+  "gguf_converter_revision": "a800ae46da2ed7dac236aa6bf2b595da6b6294b5",
+  "gpu_device_name": "Tesla T4",
+  "gpu_vram_gb": 14.56,
+  "compute_dtype": "torch.bfloat16",
+  "per_device_train_batch_size": 4,
+  "gradient_accumulation_steps": 4,
+  "effective_batch_size": 16,
+  "seed": 42,
+  "checkpoint": {
+    "resumed": true,
+    "resume_from": "/content/drive/MyDrive/IOFT-LLM/stage10/checkpoints/checkpoint-228",
+    "global_step": 228,
+    "epoch": 3.0
+  },
+  "artifacts": {
+    "adapter_dir": "/content/drive/MyDrive/IOFT-LLM/stage10/adapters/ioft-qwen25-3b-v1",
+    "merged_dir": "/content/drive/MyDrive/IOFT-LLM/stage10/merged/ioft-qwen25-3b-v1",
+    "gguf_sha256": "bd8fa21a30969ace858a1e801aa89480439cb9c12110809b4f681909e69709ab",
+    "ollama_model": "ioft-qwen25-3b-v1"
+  },
+  "dataset_hashes": {
+    "train_sha256": "0130028f9609c5a865848c7a90a98b7a47ef1abe1ca8b6eb1f11029bc24adccf",
+    "val_sha256": "e15baf08e006780bc32bf2f55d1f653695b4f34939aeeea3244b76f02849f445",
+    "test_sha256": "0ae15b2d073d945aec923781b5bfc69a411634d25bd2f8e3d900b3c3b610c850",
+    "manifest_sha256": "e1ea2f528baf23f2e274000e309191d30593fa7e3595a3858a4ed46ab71c326a"
+  }
+}
