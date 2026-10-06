@@ -13,12 +13,29 @@ from app.planning.models import ToolCall, ExecutionPlan
 from app.tools.definitions import is_tool_enabled
 
 
-SPEED_PROFILES: Dict[str, int] = {
-    "slow": settings.ROBOT_SPEED_SLOW,
-    "medium": settings.ROBOT_SPEED_MEDIUM,
-    "fast": settings.ROBOT_SPEED_FAST,
-}
+class _DynamicSpeedProfiles(dict):
+    def __getitem__(self, key: str) -> int:
+        if key == "slow":
+            return settings.ROBOT_SPEED_SLOW
+        if key == "medium":
+            return settings.ROBOT_SPEED_MEDIUM
+        if key == "fast":
+            return settings.ROBOT_SPEED_FAST
+        return super().__getitem__(key)
 
+    def get(self, key: str, default: Any = None) -> Any:
+        if key in ("slow", "medium", "fast"):
+            return self[key]
+        return super().get(key, default)
+
+    def keys(self):
+        return ["slow", "medium", "fast"]
+
+    def __contains__(self, key: object) -> bool:
+        return key in ("slow", "medium", "fast")
+
+
+SPEED_PROFILES = _DynamicSpeedProfiles()
 MOVEMENT_TOOLS = {"forward", "backward", "left", "right"}
 
 
