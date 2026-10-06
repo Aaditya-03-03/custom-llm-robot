@@ -46,9 +46,37 @@ async def lifespan(app: FastAPI):
             "RAG_AUTO_INGEST is false. Using existing persistent vector database."
         )
 
+    # --- Robot State Background Heartbeat Worker ---
+    import asyncio
+    from app.state.manager import default_state_manager
+
+    heartbeat_task = None
+
+    async def _heartbeat_worker():
+        while True:
+            try:
+                await default_state_manager.probe_heartbeat()
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.debug(f"Heartbeat probe background worker error: {e}")
+            try:
+                await asyncio.sleep(settings.ROBOT_HEARTBEAT_INTERVAL_SECONDS)
+            except asyncio.CancelledError:
+                break
+
+    heartbeat_task = asyncio.create_task(_heartbeat_worker())
+
     yield
 
     # --- Shutdown ---
+    if heartbeat_task:
+        heartbeat_task.cancel()
+        try:
+            await heartbeat_task
+        except asyncio.CancelledError:
+            pass
+
     disconnect_mongodb()
     logger.info(f"Shutting down {settings.APP_NAME}.")
 
