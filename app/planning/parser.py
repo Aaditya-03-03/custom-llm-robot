@@ -14,13 +14,21 @@ from app.tools.definitions import is_tool_enabled
 
 
 class _DynamicSpeedProfiles(dict):
+    def _get_live_settings(self):
+        try:
+            from app.core.config import Settings
+            return Settings()
+        except Exception:
+            return settings
+
     def __getitem__(self, key: str) -> int:
+        live = self._get_live_settings()
         if key == "slow":
-            return settings.ROBOT_SPEED_SLOW
+            return live.ROBOT_SPEED_SLOW
         if key == "medium":
-            return settings.ROBOT_SPEED_MEDIUM
+            return live.ROBOT_SPEED_MEDIUM
         if key == "fast":
-            return settings.ROBOT_SPEED_FAST
+            return live.ROBOT_SPEED_FAST
         return super().__getitem__(key)
 
     def get(self, key: str, default: Any = None) -> Any:
