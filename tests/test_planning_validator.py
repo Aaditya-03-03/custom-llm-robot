@@ -63,16 +63,31 @@ def test_security_test_c_speed_999_rejected():
 
 def test_disabled_phase1_tools_rejected():
     """Verify disabled Phase 1 tools (left, right, stand, sit) are rejected during pre-validation."""
-    for tool_name in ["left", "right", "stand", "sit", "status"]:
-        plan = ExecutionPlan(
-            plan_id=f"plan_disabled_{tool_name}",
-            actions=[
-                ToolCall(action_id="act_disabled", tool=tool_name, parameters={}),
-            ]
-        )
-        result = pre_validate_execution_plan(plan)
-        assert result.is_valid is False
-        assert any(f"Tool '{tool_name}' is disabled or unsupported" in err for err in result.errors)
+    with patch("app.tools.definitions.settings.ROBOT_PIVOT_TURNS_VERIFIED", False):
+        for tool_name in ["left", "right", "stand", "sit", "status"]:
+            plan = ExecutionPlan(
+                plan_id=f"plan_disabled_{tool_name}",
+                actions=[
+                    ToolCall(action_id="act_disabled", tool=tool_name, parameters={}),
+                ]
+            )
+            result = pre_validate_execution_plan(plan)
+            assert result.is_valid is False
+            assert any(f"Tool '{tool_name}' is disabled or unsupported" in err for err in result.errors)
+
+
+def test_verified_pivot_turns_accepted():
+    """Verify left and right tools are accepted during pre-validation when ROBOT_PIVOT_TURNS_VERIFIED is True."""
+    with patch("app.tools.definitions.settings.ROBOT_PIVOT_TURNS_VERIFIED", True):
+        for tool_name in ["left", "right"]:
+            plan = ExecutionPlan(
+                plan_id=f"plan_verified_{tool_name}",
+                actions=[
+                    ToolCall(action_id="act_turn", tool=tool_name, parameters={"speed": 70, "steps": 1}),
+                ]
+            )
+            result = pre_validate_execution_plan(plan)
+            assert result.is_valid is True
 
 
 @pytest.mark.anyio

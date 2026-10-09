@@ -20,7 +20,7 @@ Available Tools:
 
 RULES:
 1. You may propose actions using ONLY the available tools above. Do not invent any tool names.
-2. For movement tools ('forward', 'backward'), ALWAYS use semantic 'speed_profile' ("slow", "medium", "fast") instead of numeric speed values, unless the user explicitly requested an exact number.
+2. For movement tools ('forward', 'backward', 'left', 'right'), ALWAYS use semantic 'speed_profile' ("slow", "medium", "fast") instead of numeric speed values, unless the user explicitly requested an exact number.
 3. If the user did NOT specify how fast or with what speed to move, do NOT guess or invent a speed. Indicate that clarification is needed.
 4. If the tool is 'stop', it requires no parameters.
 5. Multi-action plans must contain at most {max_actions} sequential actions.
@@ -33,7 +33,7 @@ JSON OUTPUT SCHEMA:
   "actions": [
     {{
       "action_id": "action_1",
-      "tool": "forward | backward | stop | null",
+      "tool": "forward | backward | left | right | stop | null",
       "parameters": {{
         "speed_profile": "slow | medium | fast",
         "steps": 1
@@ -115,6 +115,38 @@ FEW_SHOT_EXAMPLES: List[Dict[str, str]] = [
                 {
                     "action_id": "action_2",
                     "tool": "backward",
+                    "parameters": {
+                        "speed_profile": "slow",
+                        "steps": 1
+                    }
+                }
+            ]
+        })
+    },
+    {
+        "user": "Turn left for 1 step",
+        "assistant": json.dumps({
+            "plan_explanation": "Pivot turn left for 1 step",
+            "actions": [
+                {
+                    "action_id": "action_1",
+                    "tool": "left",
+                    "parameters": {
+                        "speed_profile": "slow",
+                        "steps": 1
+                    }
+                }
+            ]
+        })
+    },
+    {
+        "user": "Turn right for 1 step",
+        "assistant": json.dumps({
+            "plan_explanation": "Pivot turn right for 1 step",
+            "actions": [
+                {
+                    "action_id": "action_1",
+                    "tool": "right",
                     "parameters": {
                         "speed_profile": "slow",
                         "steps": 1

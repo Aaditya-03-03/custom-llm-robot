@@ -45,12 +45,13 @@ def test_protocol_rejects_out_of_range_or_invalid_speed():
 
 def test_protocol_pivot_turns_disabled_by_default():
     """By default, ROBOT_PIVOT_TURNS_VERIFIED is False, rejecting left/right."""
-    with pytest.raises(CapabilityDisabledError) as exc:
-        ESP32Protocol.format_packet("left", {"speed": 40})
-    assert "unverified on physical hardware and disabled" in str(exc.value)
+    with patch("app.execution.protocol.settings.ROBOT_PIVOT_TURNS_VERIFIED", False):
+        with pytest.raises(CapabilityDisabledError) as exc:
+            ESP32Protocol.format_packet("left", {"speed": 40})
+        assert "unverified on physical hardware and disabled" in str(exc.value)
 
-    with pytest.raises(CapabilityDisabledError):
-        ESP32Protocol.format_packet("right", {"speed": 40})
+        with pytest.raises(CapabilityDisabledError):
+            ESP32Protocol.format_packet("right", {"speed": 40})
 
 
 def test_protocol_pivot_turns_allowed_when_verified():
