@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IOFT Teleop Console — Real-Time Voice & Motor Control</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <!-- Top Engineering Header Bar -->
+  <header class="topbar">
+    <div class="brand-section">
+      <span class="brand-tag">IOFT-CONSOLE</span>
+      <span class="brand-title">Humanoid Robot Teleoperation & Voice Interface</span>
+      <span class="brand-subtitle">ESP32 UDP 8888 &bull; Dual IBT-2 Driver</span>
+    </div>
+
+    <div class="topbar-meta">
+      <div class="meta-pill" id="robot-status-pill">
+        <span class="dot offline" id="status-dot"></span>
+        <span id="status-text">OFFLINE</span>
+      </div>
+
+      <div class="auth-badge auth-ai" id="authority-badge">
+        AUTHORITY: AI
+      </div>
+    </div>
+  </header>
+
+  <!-- 3-Column Studio Grid Layout -->
+  <main class="workspace-grid">
+    
+    <!-- ====================================================================
+         PANEL 1: Voice & Natural Language Dispatcher
+         ==================================================================== -->
+    <section class="panel" id="panel-voice">
+      <div class="panel-header">
+        <span class="panel-title">
+          <span>Speech & Intent Interface</span>
+        </span>
+        <span class="panel-title-badge">PYTHON STT (SPEECH-RECOGNITION)</span>
+      </div>
+
+      <div class="panel-body">
+        
+        <!-- Microphone Input Control, Device Selector & VU Meter -->
+        <div class="mic-control-card">
+          <div class="mic-action-row">
+            <button class="btn-mic-toggle" id="voice-orb" title="Click to start/stop speech recognition">
+              <span class="rec-dot"></span>
+              <span id="orb-status">MIC: PUSH TO TALK</span>
+            </button>
+
+            <!-- Mode Selector -->
+            <div class="mode-segmented">
+              <button class="mode-btn active" id="mode-push">Push</button>
+              <button class="mode-btn" id="mode-continuous">Continuous</button>
+            </div>
+          </div>
+
+          <!-- Mic Device & Language Selectors -->
+          <div style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 6px; margin-top: 4px;">
+            <select id="mic-device-select" class="audio-pref-row" style="padding: 4px 6px; font-size: 0.72rem; width: 100%; border-radius: 4px;">
+              <option value="">Default Microphone</option>
+            </select>
+            <select id="stt-lang-select" class="audio-pref-row" style="padding: 4px 6px; font-size: 0.72rem; width: 100%; border-radius: 4px;">
+              <option value="en-IN" selected>English (India)</option>
+              <option value="en-US">English (US)</option>
+              <option value="en-GB">English (UK)</option>
+            </select>
+          </div>
+
+          <!-- Live Hardware Decibel VU Meter & Sensitivity -->
+          <div class="mic-meter-box" style="margin-top: 2px;">
+            <div class="meter-label-row">
+              <span style="display: flex; align-items: center; gap: 6px;">
+                <span>Live Audio Meter</span>
+                <button id="btn-test-mic" style="background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.65rem; padding: 1px 5px; border-radius: 3px; cursor: pointer;">Test Mic</button>
+              </span>
+              <span id="stt-status-pill">READY</span>
+            </div>
+            <div class="vu-meter-bar">
+              <div class="vu-meter-fill" id="vu-meter-fill"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Terminal Style Transcript Box -->
+        <div class="terminal-block">
+          <div class="terminal-block-header">
+            <span>Live Transcript Stream</span>
+            <span style="color: #64748b;">STT</span>
+          </div>
+          <div class="transcript-display waiting" id="transcript-text">
+            Waiting for audio input... (Click "MIC" or select a preset below)
+          </div>
+        </div>
+
+        <!-- CLI Style Prompt Input -->
+        <div class="cli-input-bar">
+          <span class="cli-prompt-symbol">&gt;</span>
+          <input type="text" id="text-command-input" placeholder="Type prompt (e.g. 'Turn left for 1 step', 'Who are you?')" autocomplete="off">
+          <button class="btn-cli-send" id="btn-send-text">RUN</button>
+        </div>
+
+        <!-- Preset Command Action Grid -->
+        <div class="preset-section">
+          <span class="preset-label">Test Commands & Queries</span>
+          <div class="preset-grid">
+            <button class="btn-preset prompt-chip" data-prompt="Turn left for 1 step">&bull; Turn Left 1 Step</button>
+            <button class="btn-preset prompt-chip" data-prompt="Turn right for 1 step">&bull; Turn Right 1 Step</button>
+            <button class="btn-preset prompt-chip" data-prompt="Move forward slowly for 2 steps">&bull; Forward 2 Steps</button>
+            <button class="btn-preset prompt-chip" data-prompt="Move backward slowly for 1 step">&bull; Backward 1 Step</button>
+            <button class="btn-preset prompt-chip" data-prompt="Stop">&bull; Stop Motors</button>
+            <button class="btn-preset prompt-chip" data-prompt="Who are you and what are your capabilities?">&bull; Query AI Capabilities</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         PANEL 2: Teleoperation & Direct Drive Station
+         ==================================================================== -->
+    <section class="panel" id="panel-teleop">
+      <div class="panel-header">
+        <span class="panel-title">
+          <span>Skid-Steer Teleop Station</span>
+        </span>
+        <span class="panel-title-badge">UDP MOTOR PORT 8888</span>
+      </div>
+
+      <div class="panel-body">
+        
+        <!-- Hardware Keypad Layout -->
+        <div class="dpad-station">
+          <div class="dpad-matrix">
+            <div></div>
+            <button class="keypad-btn" id="dpad-forward" title="Forward (W / Up)">
+              <span class="arrow-icon">&#9650;</span>
+              <span class="sub-label">FWD</span>
+            </button>
+            <div></div>
+
+            <button class="keypad-btn" id="dpad-left" title="Pivot Left (A / Left)">
+              <span class="arrow-icon">&#9664;</span>
+              <span class="sub-label">LEFT</span>
+            </button>
+            <button class="keypad-btn estop-center" id="dpad-stop" title="Emergency Stop (Space)">
+              <span style="font-size: 0.95rem; font-weight: 800;">&#9632;</span>
+              <span class="sub-label">STOP</span>
+            </button>
+            <button class="keypad-btn" id="dpad-right" title="Pivot Right (D / Right)">
+              <span class="arrow-icon">&#9654;</span>
+              <span class="sub-label">RIGHT</span>
+            </button>
+
+            <div></div>
+            <button class="keypad-btn" id="dpad-backward" title="Backward (S / Down)">
+              <span class="arrow-icon">&#9660;</span>
+              <span class="sub-label">REV</span>
+            </button>
+            <div></div>
+          </div>
+
+          <div class="keypad-shortcut-hint">
+            Shortcuts: <span class="kbd">W</span> <span class="kbd">A</span> <span class="kbd">S</span> <span class="kbd">D</span> &bull; <span class="kbd">Space</span> to Stop
+          </div>
+        </div>
+
+        <!-- Speed Calibration Profiles -->
+        <div class="config-group">
+          <div class="config-header">
+            <span>Calibrated Drive Profile</span>
+            <span>PWM Range</span>
+          </div>
+          <div class="btn-group-row">
+            <button class="btn-selector speed-btn active" data-speed="slow" data-pwm="70">SLOW (70 PWM)</button>
+            <button class="btn-selector speed-btn" data-speed="medium" data-pwm="80">MED (80 PWM)</button>
+            <button class="btn-selector speed-btn" data-speed="fast" data-pwm="95">FAST (95 PWM)</button>
+          </div>
+        </div>
+
+        <!-- Step Multiplier Selector -->
+        <div class="config-group">
+          <div class="config-header">
+            <span>Step Duration</span>
+            <span>0.5s / Step</span>
+          </div>
+          <div class="btn-group-row">
+            <button class="btn-selector step-btn active" data-steps="1">1 Step</button>
+            <button class="btn-selector step-btn" data-steps="2">2 Steps</button>
+            <button class="btn-selector step-btn" data-steps="3">3 Steps</button>
+          </div>
+        </div>
+
+        <!-- Ownership Authority Switcher -->
+        <div class="config-group">
+          <div class="config-header">
+            <span>Control Authority Handshake</span>
+          </div>
+          <div class="authority-button-group">
+            <button class="btn-auth-switch active-ai" id="btn-auth-ai">AI Server</button>
+            <button class="btn-auth-switch" id="btn-auth-manual">Manual</button>
+            <button class="btn-auth-switch btn-estop-action" id="btn-auth-estop">E-STOP</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         PANEL 3: Hardware Diagnostics & Log Stream
+         ==================================================================== -->
+    <section class="panel" id="panel-diagnostics">
+      <div class="panel-header">
+        <span class="panel-title">
+          <span>Diagnostics & Packet Stream</span>
+        </span>
+        <button id="btn-clear-logs" style="background: none; border: none; color: #64748b; cursor: pointer; font-family: var(--font-mono); font-size: 0.7rem;" onclick="document.getElementById('log-stream').innerHTML=''">Clear Stream</button>
+      </div>
+
+      <div class="panel-body">
+        
+        <!-- Live Metrics Table -->
+        <div class="metrics-table-grid">
+          <div class="metric-cell">
+            <span class="metric-name">Heartbeat Ping</span>
+            <span class="metric-value highlight-cyan" id="telemetry-latency">-- ms</span>
+          </div>
+          <div class="metric-cell">
+            <span class="metric-name">Last Ack Packet</span>
+            <span class="metric-value highlight-cyan" id="telemetry-last-cmd">None</span>
+          </div>
+          <div class="metric-cell">
+            <span class="metric-name">Active Authority</span>
+            <span class="metric-value" id="telemetry-authority">AI</span>
+          </div>
+          <div class="metric-cell">
+            <span class="metric-name">Socket Target</span>
+            <span class="metric-value" style="font-size: 0.78rem; color: #94a3b8;">rioft.local:8888</span>
+          </div>
+        </div>
+
+        <!-- Raw Developer Activity Stream -->
+        <div class="diagnostics-log-box" id="log-stream">
+          <div class="log-entry">
+            <span class="log-timestamp">--:--:--</span>
+            <span class="log-tag sys">SYS</span>
+            <span class="log-msg">IOFT Teleop Console initialized. Awaiting commands.</span>
+          </div>
+        </div>
+
+        <!-- Audio Output Configuration -->
+        <div class="audio-pref-row">
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+            <input type="checkbox" id="tts-toggle" checked>
+            <span>TTS Audio</span>
+          </label>
+          <select id="voice-select" style="max-width: 140px;">
+            <option>Loading...</option>
+          </select>
+          <button class="btn-test-sound" id="btn-test-tts">Test Voice</button>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Engineering Status Footer Bar -->
+  <footer class="statusbar">
+    <span>IOFT Humanoid Core v1.0 &bull; Local Qwen-2.5 3B QLoRA &bull; Dual IBT-2 BTS7960 Drivers</span>
+    <span>Host: 127.0.0.1:8000 &bull; UDP Motor Port: 8888</span>
+  </footer>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.core.config import settings
 from app.core.logging import RequestIDMiddleware, logger
-from app.api import health, chat, knowledge, intent, commands, assistant, robot
+from app.api import health, chat, knowledge, intent, commands, assistant, robot, voice
 from app.rag.config import rag_settings
 from app.memory.database import connect_mongodb, disconnect_mongodb
 
@@ -102,11 +102,25 @@ app.include_router(intent.router, prefix="/api/v1", tags=["Intent"])
 app.include_router(commands.router, prefix="/api/v1", tags=["Commands"])
 app.include_router(assistant.router, prefix="/api/v1", tags=["Assistant"])
 app.include_router(robot.router, prefix="/api/v1", tags=["Robot"])
+app.include_router(voice.router, prefix="/api/v1", tags=["Voice"])
 
+
+
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+STATIC_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "static"))
+
+if os.path.exists(STATIC_DIR):
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.get("/", include_in_schema=False)
+@app.get("/dashboard", include_in_schema=False)
 async def root():
+    index_path = os.path.join(STATIC_DIR, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
     return {
         "status": "online",
         "message": f"Welcome to {settings.APP_NAME}",
